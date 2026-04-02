@@ -8,7 +8,7 @@ To use this action in your GitHub Actions workflow, add the following step to yo
 
 ```yaml
 - name: Set up SSH Agent
-  uses: gha-ssh-agent@v1.0.0
+  uses: albr21/gha-ssh-agent@v1.0.0
   with:
     ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
     hosts: |-
