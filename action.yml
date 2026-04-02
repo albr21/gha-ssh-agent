@@ -1,0 +1,92 @@
+name: gha-ssh-agent
+
+description: |-
+  This action starts the SSH agent with the provided private key, and optionally
+  configures the known_hosts file by scanning the provided hosts or by adding the
+  provided known_hosts content.
+
+author: albr21
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  ssh-key:
+    description: SSH private key
+    required: true
+  hosts:
+    description: |-
+      List of hosts to scan and add to the known_hosts file.
+      Can be a list of hosts on separate lines.
+
+      This input is used to avoid the need to manually add hosts to the known_hosts file
+      by using `ssh-keyscan`.
+      It is not recommended to use because of the security risks involved.
+      It expose to a Man-in-the-Middle attack.
+      Recommended to use the `known_hosts` input instead.
+    required: false
+  known-hosts:
+    description: |-
+      Content of the known_hosts file.
+
+      This input enable to fill the known_hosts file with the content provided.
+      It is recommended to use this input instead of the `hosts` input.
+      Both inputs are compatible, known_hosts will be appended to the known_hosts file.
+    required: false
+  ssh-key-types:
+    description: |-
+      Comma-separated list of key types to scan for (e.g., "rsa,ed25519")
+      See https://man.archlinux.org/man/ssh-keyscan.1.en#t for supported
+      key types of ssh-keyscan.
+    required: false
+    default: "rsa,ed25519"
+  command-line-interpreter:
+    description: |-
+      Command line interpreter.
+      By default, it uses `bash`, but you can change it to `sh`, `powershell`, or any other supported shell if needed.
+    required: false
+    default: bash
+
+runs:
+  using: composite
+  steps:
+    - name: SSH Agent
+      run: |-
+        eval "$(ssh-agent -s)"
+        echo "${{ inputs.ssh-key }}" | tr -d '\r' | ssh-add - > /dev/null
+        echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+      shell: ${{ inputs.command-line-interpreter }}
+
+    - name: Add hosts to known_hosts
+      run: |-
+        # Get the user home directory
+        USER_HOME=$(getent passwd "$(whoami)" | cut -d: -f6)
+        SSH_DIR="$USER_HOME/.ssh"
+        KNOWN_HOSTS_FILE="$SSH_DIR/known_hosts"
+
+        # Create the .ssh directory if it doesn't exist and set permissions
+        if [ ! -d "$SSH_DIR" ]; then
+          mkdir -p "$SSH_DIR"
+          chmod 700 "$SSH_DIR"
+        fi
+
+        # Scan the hosts and add them to known_hosts
+        echo "${{ inputs.hosts }}" | while read -r host; do
+          if [ -n "$host" ]; then
+            for key_type in $(echo "${{ inputs.ssh-key-types }}" | tr ',' ' '); do
+              ssh-keyscan -t "$key_type" "$host" >> "$KNOWN_HOSTS_FILE" 2>/dev/null || true
+            done
+          fi
+        done
+
+        # Add the known-hosts content
+        if [ -n "${{ inputs.known-hosts }}" ]; then
+          echo "${{ inputs.known-hosts }}" >> "$KNOWN_HOSTS_FILE"
+        fi
+
+        # Remove duplicate entries and sort the known_hosts file
+        sort -u "$KNOWN_HOSTS_FILE" -o "$KNOWN_HOSTS_FILE"
+
+        # Set permissions for the known_hosts file
+        chmod 600 "$KNOWN_HOSTS_FILE"
+      shell: ${{ inputs.command-line-interpreter }}
