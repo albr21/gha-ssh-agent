@@ -2,8 +2,10 @@ name: gha-ssh-agent
 description: |-
   GitHub Action to configure SSH agent for CI/CD pipelines.
 version: 1.0.0
-changes: |-
-  [1.0.0]
-    * Initial release
-  [0.0.0]
-    * Under development
+releases:
+  - version: 1.0.0
+    changes:
+      - Initial release
+  - version: 0.0.0
+    changes:
+      - Under development
