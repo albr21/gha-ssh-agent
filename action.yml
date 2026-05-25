@@ -50,6 +50,18 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Validate Inputs
+      uses: albr21/gha-type-guard@1.0.0
+      with:
+        payload: |
+          [
+            {"value": "${{ inputs.ssh-key }}", "type": "string"},
+            {"value": "${{ inputs.hosts }}", "type": "string"},
+            {"value": "${{ inputs.known-hosts }}", "type": "string"},
+            {"value": "${{ inputs.ssh-key-types }}", "type": "string"},
+            {"value": "${{ inputs.command-line-interpreter }}", "type": "enum", "enumValues": ["bash", "sh", "powershell"]}
+          ]
+
     - name: SSH Agent
       run: |-
         eval "$(ssh-agent -s)"
